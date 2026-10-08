@@ -5,6 +5,7 @@ Controls:
   right-click   remove the region under the cursor
   r             reset the board
   h             place one region from the puzzle's solution
+  u             undo the last change
 """
 
 import math
@@ -143,6 +144,9 @@ class PatchesApp:
             self.board.place(self.solution[drone.id])
             self.message = f"Hint: placed {drone.id}'s region."
         self.redraw()
+        elif event.key == "u":
+            self.message = "Undid last move." if self.board.undo() else "Nothing to undo."
+            self.redraw()
 
     # ---- stats ---------------------------------------------------------------
 

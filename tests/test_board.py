@@ -48,3 +48,62 @@ def test_full_solution_is_solved():
         board.place(rect)
     assert board.solved
     assert board.covered_cells() == 49
+
+
+def test_place_then_undo_leaves_board_empty():
+    board = make_board()
+    board.place(SAMPLE_SOLUTION["drone_1"])
+    assert board.undo() is True
+    assert board.regions == {}
+
+
+def test_undo_brings_back_regions_a_placement_replaced():
+    board = make_board()
+    board.place(SAMPLE_SOLUTION["drone_1"])
+    board.place(SAMPLE_SOLUTION["drone_2"])
+    before = dict(board.regions)
+    board.place(Rect(0, 1, 4, 4))  # replaces drone_1's region
+    assert "drone_1" not in board.regions
+    assert board.undo() is True
+    assert board.regions == before
+
+
+def test_remove_then_undo_restores_the_region():
+    board = make_board()
+    board.place(SAMPLE_SOLUTION["drone_1"])
+    board.remove_at(1, 1)
+    assert board.undo() is True
+    assert board.regions == {"drone_1": SAMPLE_SOLUTION["drone_1"]}
+
+
+def test_reset_then_undo_restores_previous_regions():
+    board = make_board()
+    board.place(SAMPLE_SOLUTION["drone_1"])
+    board.place(SAMPLE_SOLUTION["drone_2"])
+    before = dict(board.regions)
+    board.reset()
+    assert board.undo() is True
+    assert board.regions == before
+
+
+def test_undo_on_fresh_board_returns_false():
+    board = make_board()
+    assert board.undo() is False
+    assert board.regions == {}
+
+
+def test_rejected_placement_and_no_op_changes_add_no_history():
+    board = make_board()
+    board.place(Rect(0, 0, 7, 7))  # no single seed
+    board.remove_at(1, 1)          # nothing there
+    board.reset()                  # already empty
+    assert board.undo() is False
+
+
+def test_placing_the_same_region_again_adds_no_history_step():
+    board = make_board()
+    board.place(SAMPLE_SOLUTION["drone_1"])
+    board.place(SAMPLE_SOLUTION["drone_1"])
+    assert board.undo() is True
+    assert board.regions == {}
+    assert board.undo() is False
