@@ -49,6 +49,7 @@ class PatchesApp:
         self.preview = None      # Rectangle artist shown while dragging
 
         self.moves = 0
+        self.stats_history = []  # (moves, start_time, end_time) before each board.history step
         self.start_time = None   # time.monotonic() of the first move, or None
         self.end_time = None     # time.monotonic() when solved, or None
 
@@ -85,10 +86,12 @@ class PatchesApp:
             self.drag_start = cell
             self.update_preview(cell)
         elif event.button == 3:
+            before = self.stats_snapshot()
             removed = self.board.remove_at(*cell)
             if removed:
                 self.message = f"Removed {removed}'s region."
                 self.register_move()
+            self.keep_stats(before)
             self.redraw()
 
     def on_motion(self, event):
@@ -104,6 +107,7 @@ class PatchesApp:
         end = self.cell_at(event) or self.drag_start
         rect = Rect.from_corners(*self.drag_start, *end)
         self.drag_start = None
+        before = self.stats_snapshot()
         drone_id = self.board.place(rect)
         if drone_id is None:
             self.message = "A region must contain exactly one drone."
@@ -113,22 +117,42 @@ class PatchesApp:
                 self.message = f"Assigned region to {drone_id}."
             else:
                 self.message = f"{drone_id}'s region breaks its shape/size rule."
+            self.keep_stats(before)
         self.redraw()
 
     def on_key(self, event):
         if event.key == "r":
+            before = self.stats_snapshot()
             self.board.reset()
             self.moves = 0
             self.start_time = None
             self.end_time = None
             self.timer.stop()
+            self.keep_stats(before)
             self.message = "Board reset."
             self.redraw()
         elif event.key == "u":
-            self.message = "Undid last move." if self.board.undo() else "Nothing to undo."
+            if self.board.undo():
+                self.moves, self.start_time, self.end_time = self.stats_history.pop()
+                self.timer.stop()
+                if self.start_time is not None and self.end_time is None:
+                    self.timer.start()
+                self.message = "Undid last move."
+            else:
+                self.message = "Nothing to undo."
             self.redraw()
 
     # ---- stats ---------------------------------------------------------------
+
+    def stats_snapshot(self):
+        """The board's history length and the stats, taken before a change."""
+        return len(self.board.history), (self.moves, self.start_time, self.end_time)
+
+    def keep_stats(self, snapshot):
+        """If the change added a board history step, remember the stats from before it."""
+        history_length, stats = snapshot
+        if len(self.board.history) > history_length:
+            self.stats_history.append(stats)
 
     def register_move(self):
         """Count a move made by the player and start the timer on the first one."""
