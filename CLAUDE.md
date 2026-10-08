@@ -13,3 +13,8 @@ This is a team project. Every change goes through a pull request.
 - Run the app: `python -m patches [puzzle.json]`
 - Run tests: `pytest`
 - Code layout: see README.md
+
+## Pull request descriptions
+When opening a PR, fill in `.github/pull_request_template.md` instead of writing a free-form
+description. Put the issue number after `Closes #`. Leave "What Claude did / what I decided" for
+the user to complete, or draft it and ask the user to check it.
