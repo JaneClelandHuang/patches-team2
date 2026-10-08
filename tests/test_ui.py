@@ -82,3 +82,62 @@ def test_reset_sets_moves_back_to_zero():
 
 def test_time_formatter():
     assert PatchesApp.format_time(65) == "1:05"
+
+
+def draw(app, row, col):
+    app.drag_start = (row, col)
+    app.on_release(click_cell(app, row, col))
+
+
+def test_undo_takes_back_the_move_it_undoes():
+    app = make_app()
+    draw(app, 0, 0)
+    assert app.moves == 1
+    app.on_key(FakeEvent(key="u"))
+    assert app.moves == 0
+    assert app.start_time is None
+
+
+def test_undo_after_two_moves_leaves_one_move():
+    app = make_app()
+    draw(app, 0, 0)
+    drone_2 = app.puzzle.drones[1]
+    draw(app, drone_2.row, drone_2.col)
+    assert app.moves == 2
+    app.on_key(FakeEvent(key="u"))
+    assert app.moves == 1
+    assert app.start_time is not None
+
+
+def test_undoing_a_removal_takes_back_its_move():
+    app = make_app()
+    draw(app, 0, 0)
+    app.on_press(click_cell(app, 0, 0, button=3))
+    assert app.moves == 2
+    app.on_key(FakeEvent(key="u"))
+    assert app.moves == 1
+
+
+def test_undoing_a_reset_restores_the_move_count():
+    app = make_app()
+    draw(app, 0, 0)
+    drone_2 = app.puzzle.drones[1]
+    draw(app, drone_2.row, drone_2.col)
+    app.on_key(FakeEvent(key="r"))
+    assert app.moves == 0
+    app.on_key(FakeEvent(key="u"))
+    assert app.moves == 2
+    assert app.start_time is not None
+
+
+def test_undo_with_nothing_to_undo_keeps_the_moves():
+    app = make_app()
+    app.on_key(FakeEvent(key="u"))
+    assert app.moves == 0
+    assert app.message == "Nothing to undo."
+
+
+def test_rejected_placement_adds_no_stats_step():
+    app = make_app()
+    draw(app, 1, 1)  # no seed here
+    assert app.stats_history == []
