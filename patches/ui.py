@@ -158,7 +158,9 @@ class PatchesApp:
         else:
             drone = next(d for d in self.puzzle.drones
                          if self.board.regions.get(d.id) != self.solution[d.id])
+            before = self.stats_snapshot()
             self.board.place(self.solution[drone.id])
+            self.keep_stats(before)
             self.message = f"Hint: placed {drone.id}'s region."
         self.redraw()
 

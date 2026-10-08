@@ -23,3 +23,11 @@ def test_hint_places_one_correct_region():
     assert len(app.board.regions) == 1
     drone_id, rect = next(iter(app.board.regions.items()))
     assert rect == PROBLEM1_SOLUTION[drone_id]
+
+
+def test_undo_after_a_hint_restores_the_empty_board():
+    app = PatchesApp(load_puzzle("puzzles/problem1.json"))
+    app.give_hint()
+    assert app.board.undo() is True
+    assert app.board.regions == {}
+    assert len(app.stats_history) == 1  # the hint kept a stats step, so u can't desync
