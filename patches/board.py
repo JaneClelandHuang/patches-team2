@@ -21,10 +21,12 @@ class Board:
         if len(seeds) != 1:
             return None
         drone = seeds[0]
-        self.history.append(dict(self.regions))
-        self.regions = {did: r for did, r in self.regions.items()
-                        if did != drone.id and not r.overlaps(rect)}
-        self.regions[drone.id] = rect
+        new_regions = {did: r for did, r in self.regions.items()
+                       if did != drone.id and not r.overlaps(rect)}
+        new_regions[drone.id] = rect
+        if new_regions != self.regions:
+            self.history.append(dict(self.regions))
+        self.regions = new_regions
         return drone.id
 
     def region_at(self, row, col):

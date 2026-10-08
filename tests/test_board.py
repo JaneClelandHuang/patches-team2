@@ -98,3 +98,12 @@ def test_rejected_placement_and_no_op_changes_add_no_history():
     board.remove_at(1, 1)          # nothing there
     board.reset()                  # already empty
     assert board.undo() is False
+
+
+def test_placing_the_same_region_again_adds_no_history_step():
+    board = make_board()
+    board.place(SAMPLE_SOLUTION["drone_1"])
+    board.place(SAMPLE_SOLUTION["drone_1"])
+    assert board.undo() is True
+    assert board.regions == {}
+    assert board.undo() is False
