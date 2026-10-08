@@ -8,6 +8,7 @@ Controls:
 """
 
 import math
+import time
 
 import matplotlib.pyplot as plt
 from matplotlib.lines import Line2D
@@ -47,12 +48,18 @@ class PatchesApp:
         self.drag_start = None   # (row, col) where the current drag began
         self.preview = None      # Rectangle artist shown while dragging
 
+        self.moves = 0
+        self.start_time = None   # time.monotonic() of the first move, or None
+        self.end_time = None     # time.monotonic() when solved, or None
+
         self.fig, self.ax = plt.subplots(figsize=(6, 6.6))
         self.fig.canvas.manager.set_window_title("Patches")
         self.fig.canvas.mpl_connect("button_press_event", self.on_press)
         self.fig.canvas.mpl_connect("motion_notify_event", self.on_motion)
         self.fig.canvas.mpl_connect("button_release_event", self.on_release)
         self.fig.canvas.mpl_connect("key_press_event", self.on_key)
+        self.timer = self.fig.canvas.new_timer(interval=1000)
+        self.timer.add_callback(self.redraw)
         self.message = "Drag from corner to corner to draw a region."
         self.redraw()
 
@@ -81,6 +88,7 @@ class PatchesApp:
             removed = self.board.remove_at(*cell)
             if removed:
                 self.message = f"Removed {removed}'s region."
+                self.register_move()
             self.redraw()
 
     def on_motion(self, event):
@@ -99,20 +107,47 @@ class PatchesApp:
         drone_id = self.board.place(rect)
         if drone_id is None:
             self.message = "A region must contain exactly one drone."
-        elif self.board.is_valid(drone_id):
-            self.message = f"Assigned region to {drone_id}."
         else:
-            self.message = f"{drone_id}'s region breaks its shape/size rule."
+            self.register_move()
+            if self.board.is_valid(drone_id):
+                self.message = f"Assigned region to {drone_id}."
+            else:
+                self.message = f"{drone_id}'s region breaks its shape/size rule."
         self.redraw()
 
     def on_key(self, event):
         if event.key == "r":
             self.board.reset()
+            self.moves = 0
+            self.start_time = None
+            self.end_time = None
+            self.timer.stop()
             self.message = "Board reset."
             self.redraw()
         elif event.key == "u":
             self.message = "Undid last move." if self.board.undo() else "Nothing to undo."
             self.redraw()
+
+    # ---- stats ---------------------------------------------------------------
+
+    def register_move(self):
+        """Count a move made by the player and start the timer on the first one."""
+        self.moves += 1
+        if self.start_time is None:
+            self.start_time = time.monotonic()
+            self.timer.start()
+
+    def elapsed_seconds(self):
+        """Seconds since the first move, frozen once the puzzle is solved."""
+        if self.start_time is None:
+            return 0.0
+        end = self.end_time if self.end_time is not None else time.monotonic()
+        return end - self.start_time
+
+    @staticmethod
+    def format_time(seconds):
+        minutes, secs = divmod(int(seconds), 60)
+        return f"{minutes}:{secs:02d}"
 
     # ---- drawing -----------------------------------------------------------
 
@@ -158,11 +193,16 @@ class PatchesApp:
         ax.grid(True, color="gray", lw=0.8)
 
         if self.board.solved:
+            if self.end_time is None and self.start_time is not None:
+                self.end_time = time.monotonic()
+                self.timer.stop()
             status = "SOLVED! Every cell is searched exactly once."
+            stats = f"SOLVED in {self.format_time(self.elapsed_seconds())} with {self.moves} moves!"
         else:
             status = (f"{len(self.board.regions)}/{len(self.puzzle.drones)} drones assigned, "
                       f"{self.board.covered_cells()}/{n * n} cells covered")
-        ax.set_title(f"{status}\n{self.message}", fontsize=10)
+            stats = f"Moves: {self.moves} · Time: {self.format_time(self.elapsed_seconds())}"
+        ax.set_title(f"{status}\n{stats}\n{self.message}", fontsize=10)
         self.fig.canvas.draw_idle()
 
     def run(self):
