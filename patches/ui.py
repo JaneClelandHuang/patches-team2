@@ -5,6 +5,7 @@ Controls:
   right-click   remove the region under the cursor
   r             reset the board
   u             undo the last change
+  h             place one region from the puzzle's solution
 """
 
 import math
@@ -16,6 +17,7 @@ from matplotlib.patches import Circle, Rectangle
 
 from .board import Board
 from .rules import Rect
+from .solver import solve
 
 SHAPE_SYMBOLS = {
     "square": "□",
@@ -47,6 +49,7 @@ class PatchesApp:
         self.colors = {d.id: d.color for d in puzzle.drones}
         self.drag_start = None   # (row, col) where the current drag began
         self.preview = None      # Rectangle artist shown while dragging
+        self.solution = None     # cached solver result, computed on the first hint
 
         self.moves = 0
         self.stats_history = []  # (moves, start_time, end_time) before each board.history step
@@ -141,6 +144,25 @@ class PatchesApp:
             else:
                 self.message = "Nothing to undo."
             self.redraw()
+        elif event.key == "h":
+            self.give_hint()
+
+    def give_hint(self):
+        """Place the solution region of the first drone that does not have it yet."""
+        if self.solution is None:
+            self.solution = solve(self.puzzle)
+        if self.solution is None:
+            self.message = "No solution found."
+        elif self.board.solved:
+            self.message = "Already solved."
+        else:
+            drone = next(d for d in self.puzzle.drones
+                         if self.board.regions.get(d.id) != self.solution[d.id])
+            before = self.stats_snapshot()
+            self.board.place(self.solution[drone.id])
+            self.keep_stats(before)
+            self.message = f"Hint: placed {drone.id}'s region."
+        self.redraw()
 
     # ---- stats ---------------------------------------------------------------
 
