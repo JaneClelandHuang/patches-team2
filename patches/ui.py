@@ -4,6 +4,7 @@ Controls:
   left-drag     draw a region (corner cell to corner cell)
   right-click   remove the region under the cursor
   r             reset the board
+  u             undo the last change
 """
 
 import math
@@ -108,6 +109,9 @@ class PatchesApp:
         if event.key == "r":
             self.board.reset()
             self.message = "Board reset."
+            self.redraw()
+        elif event.key == "u":
+            self.message = "Undid last move." if self.board.undo() else "Nothing to undo."
             self.redraw()
 
     # ---- drawing -----------------------------------------------------------
